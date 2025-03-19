@@ -254,146 +254,136 @@ const Characters = () => {
       setAnalyzeLoading(false);
     }
   };
-
-  // Transform Gemini API response to ReactFlow format
-  const transformGeminiDataToReactFlow = (data) => {
-    const { characters, relationships } = data;
+const transformGeminiDataToReactFlow = (data) => {
+  const { characters, relationships } = data;
+  
+  const characterIdMap = {};
+  
+  // Create nodes for each character/entity
+  const nodes = characters.map((character, index) => {
+    const id = `char-${index}`;
+    characterIdMap[character.name] = id;
     
-    // Create a lookup for character names to IDs
-    const characterIdMap = {};
+    // Position nodes in a circle layout
+    const radius = Math.min(window.innerWidth, 800) * 0.35; // Responsive radius
+    const angle = (index / characters.length) * 2 * Math.PI;
+    const x = window.innerWidth / 2 + radius * Math.cos(angle);
+    const y = 300 + radius * Math.sin(angle);
     
-    // Transform characters to nodes
-    const nodes = characters.map((character, index) => {
-      const id = `char-${index}`;
-      characterIdMap[character.name] = id;
+    // Scale node size based on importance
+    const getNodeStyle = (entityType, importance) => {
+      const scale = importance ? Math.max(0.8, Math.min(importance / 5, 2)) : 1;
+      const size = 120 * scale;
       
-      // Calculate position in a circle layout
-      const radius = 250; // Radius of the circle
-      const angle = (index / characters.length) * 2 * Math.PI;
-      const x = 400 + radius * Math.cos(angle);
-      const y = 300 + radius * Math.sin(angle);
+      const baseStyle = {
+        width: size,
+        height: size,
+        border: '1px solid',
+        borderRadius: '50%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '8px',
+        textAlign: 'center'
+      };
       
-      // Set node style based on entity type and importance
-      const getNodeStyle = (entityType, importance) => {
-        const baseStyle = {
-          width: 120,
-          height: 120,
-          border: '1px solid',
-          borderRadius: '50%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '8px',
-        };
-        
-        const styles = {
-          person: {
-            ...baseStyle,
-            background: 'hsl(var(--primary) / 0.2)',
-            borderColor: 'hsl(var(--primary))',
-            color: 'hsl(var(--primary))'
-          },
-          organization: {
-            ...baseStyle,
-            background: 'hsl(var(--destructive) / 0.2)',
-            borderColor: 'hsl(var(--destructive))',
-            color: 'hsl(var(--destructive))'
-          },
-          location: {
-            ...baseStyle,
-            background: 'hsl(215 20.2% 65.1% / 0.2)',
-            borderColor: 'hsl(215 20.2% 65.1%)',
-            color: 'hsl(215 20.2% 65.1%)'
-          },
-          concept: {
-            ...baseStyle,
-            background: 'hsl(24.6 95% 53.1% / 0.2)',
-            borderColor: 'hsl(24.6 95% 53.1%)',
-            color: 'hsl(24.6 95% 53.1%)'
-          },
-          unknown: {
-            ...baseStyle,
-            background: 'hsl(var(--secondary) / 0.4)',
-            borderColor: 'hsl(var(--secondary))',
-            color: 'hsl(var(--foreground))'
-          }
-        };
+      const styles = {
+        person: {
+          ...baseStyle,
+          background: 'hsl(var(--primary) / 0.2)',
+          borderColor: 'hsl(var(--primary))',
+          color: 'hsl(var(--primary))'
+        },
+        organization: {
+          ...baseStyle,
+          background: 'hsl(var(--destructive) / 0.2)',
+          borderColor: 'hsl(var(--destructive))',
+          color: 'hsl(var(--destructive))'
+        },
+        location: {
+          ...baseStyle,
+          background: 'hsl(215 20.2% 65.1% / 0.2)',
+          borderColor: 'hsl(215 20.2% 65.1%)',
+          color: 'hsl(215 20.2% 65.1%)'
+        },
+        concept: {
+          ...baseStyle,
+          background: 'hsl(24.6 95% 53.1% / 0.2)',
+          borderColor: 'hsl(24.6 95% 53.1%)',
+          color: 'hsl(24.6 95% 53.1%)'
+        },
+        unknown: {
+          ...baseStyle,
+          background: 'hsl(var(--secondary) / 0.4)',
+          borderColor: 'hsl(var(--secondary))',
+          color: 'hsl(var(--foreground))'
+        }
+      };
+      
+      return styles[entityType] || styles.unknown;
+    };
+    
+    return {
+      id,
+      type: 'entity',
+      position: { x, y },
+      data: {
+        label: character.name,
+        role: character.role || '',
+        entityType: character.entityType || 'unknown',
+        description: character.description || '',
+        traits: character.traits || [],
+        importance: character.importance || 5
+      },
+      style: getNodeStyle(character.entityType, character.importance)
+    };
+  });
 
-        // Adjust size based on importance
-        const importanceScale = importance ? Math.min(importance / 5, 2) : 1;
-        const style = styles[entityType || 'unknown'] || styles.unknown;
-        
-        return {
-          ...style,
-          width: style.width * importanceScale,
-          height: style.height * importanceScale,
-        };
+  // Create edges for relationships
+  const edges = relationships ? relationships.map((relationship, index) => {
+    const sourceId = characterIdMap[relationship.source];
+    const targetId = characterIdMap[relationship.target];
+    
+    if (!sourceId || !targetId) {
+      console.warn(`Could not find node for ${!sourceId ? relationship.source : relationship.target}`);
+      return null;
+    }
+    
+    const getEdgeStyle = (type, strength) => {
+      const strokeWidth = strength ? Math.max(1, Math.min(strength / 2, 5)) : 2;
+      
+      const styles = {
+        ally: { stroke: 'hsl(var(--primary))' },
+        enemy: { stroke: 'hsl(var(--destructive))' },
+        family: { stroke: 'hsl(24.6 95% 53.1%)' },
+        colleague: { stroke: 'hsl(215 20.2% 65.1%)' },
+        default: { stroke: 'hsl(var(--secondary))' }
       };
       
       return {
-        id,
-        type: 'entity',
-        position: { x, y },
-        data: {
-          label: character.name,
-          role: character.role,
-          entityType: character.entityType || 'unknown',
-          description: character.description,
-          traits: character.traits,
-          importance: character.importance
-        },
-        style: getNodeStyle(character.entityType, character.importance)
+        ...styles[type.toLowerCase()] || styles.default,
+        strokeWidth
       };
-    });
+    };
+    
+    return {
+      id: `edge-${index}`,
+      source: sourceId,
+      target: targetId,
+      label: relationship.type,
+      animated: relationship.type?.toLowerCase() === 'enemy',
+      style: getEdgeStyle(relationship.type, relationship.strength),
+      data: {
+        description: relationship.description,
+        strength: relationship.strength
+      },
+      sourceName: relationship.source,
+      targetName: relationship.target
+    };
+  }).filter(Boolean) : [];
 
-    // Transform relationships to edges
-    const edges = relationships ? relationships.map((relationship, index) => {
-      const sourceId = characterIdMap[relationship.source];
-      const targetId = characterIdMap[relationship.target];
-      
-      if (!sourceId || !targetId) {
-        console.warn(`Could not find node for ${!sourceId ? relationship.source : relationship.target}`);
-        return null;
-      }
-      
-      // Determine edge style based on relationship type
-      const getEdgeStyle = (type, strength) => {
-        const strokeWidth = strength ? Math.max(1, Math.min(strength / 2, 5)) : 2;
-        
-        const styles = {
-          ally: { stroke: 'hsl(var(--primary))' },
-          enemy: { stroke: 'hsl(var(--destructive))' },
-          family: { stroke: 'hsl(24.6 95% 53.1%)' },
-          colleague: { stroke: 'hsl(215 20.2% 65.1%)' },
-          default: { stroke: 'hsl(var(--secondary))' }
-        };
-        
-        return {
-          ...styles[type] || styles.default,
-          strokeWidth
-        };
-      };
-      
-      return {
-        id: `edge-${index}`,
-        source: sourceId,
-        target: targetId,
-        label: relationship.type,
-        animated: relationship.type === 'enemy',
-        style: getEdgeStyle(relationship.type, relationship.strength),
-        data: {
-          description: relationship.description,
-          strength: relationship.strength
-        },
-        // Add these for the sidebar's relationship rendering
-        sourceName: relationship.source,
-        targetName: relationship.target
-      };
-    }).filter(Boolean) : [];
-
-    return { nodes, edges };
-  };
-
+  return { nodes, edges };
+};
   // Get relationships for the selected node
   const getSelectedNodeRelationships = () => {
     if (!selectedNode) return [];
