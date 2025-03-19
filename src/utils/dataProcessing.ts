@@ -133,7 +133,14 @@ export const processMindMapData = (context: string) => {
       id: nodeId,
       data: { label: concept },
       position: { x, y },
-      style: { borderRadius: '8px', padding: '10px' },
+      style: { 
+        borderRadius: '8px', 
+        padding: '10px',
+        background: 'white',
+        color: 'black',
+        border: '1px solid #e2e8f0',
+        width: 150,
+      },
     });
     
     // Connect to central node

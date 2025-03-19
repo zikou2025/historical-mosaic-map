@@ -1,30 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  ReactFlow, 
+
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Network, Loader } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import ReactFlow, { 
+  Node, 
+  Edge, 
   Background, 
   Controls, 
-  MiniMap,
+  ReactFlowProvider,
   useNodesState,
-  useEdgesState,
-  addEdge,
-  ConnectionLineType,
-  MarkerType,
-} from '@xyflow/react';
-import { motion } from 'framer-motion';
-import { Loader, GitBranch } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+  useEdgesState
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 import { processMindMapData } from '@/utils/dataProcessing';
-import '@xyflow/react/dist/style.css';
-
-const initialNodes = [];
-const initialEdges = [];
 
 const MindMap = () => {
   const { toast } = useToast();
   const [historyContext, setHistoryContext] = useState('');
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [loading, setLoading] = useState(false);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
   useEffect(() => {
     const storedContext = sessionStorage.getItem('historyContext');
@@ -34,25 +31,14 @@ const MindMap = () => {
     }
   }, []);
 
-  const onConnect = useCallback((params: any) => {
-    setEdges((eds) => 
-      addEdge({
-        ...params,
-        type: 'smoothstep',
-        animated: true,
-        markerEnd: { type: MarkerType.ArrowClosed },
-      }, eds)
-    );
-  }, [setEdges]);
-
   const generateMindMap = async (context: string) => {
     setLoading(true);
     try {
-      // Normally would call an AI service here
+      // Process the actual input text
       setTimeout(() => {
-        const { nodes: generatedNodes, edges: generatedEdges } = processMindMapData(context);
-        setNodes(generatedNodes);
-        setEdges(generatedEdges);
+        const data = processMindMapData(context);
+        setNodes(data.nodes);
+        setEdges(data.edges);
         setLoading(false);
       }, 1500);
     } catch (error) {
@@ -66,8 +52,12 @@ const MindMap = () => {
     }
   };
 
+  const onNodeClick = (event: React.MouseEvent, node: Node) => {
+    setSelectedNode(node);
+  };
+
   return (
-    <div className="max-w-6xl mx-auto h-full">
+    <div className="max-w-6xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -75,11 +65,11 @@ const MindMap = () => {
         className="text-center mb-8"
       >
         <h1 className="text-3xl font-bold mb-4 flex items-center justify-center gap-2">
-          <GitBranch className="h-6 w-6 text-primary" />
-          Historical Mind Map
+          <Network className="h-6 w-6 text-primary" />
+          Mind Map Generation
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Exploring connections and relationships between historical elements.
+          Visualizing concepts and their relationships from your historical context.
         </p>
       </motion.div>
 
@@ -94,37 +84,41 @@ const MindMap = () => {
           <p className="mt-4 text-muted-foreground">Generating mind map...</p>
         </div>
       ) : (
-        <div className="w-full h-[70vh] glass-panel overflow-hidden">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            connectionLineType={ConnectionLineType.SmoothStep}
-            defaultZoom={1}
-            minZoom={0.1}
-            maxZoom={2}
-            fitView
-            attributionPosition="bottom-right"
-          >
-            <Background />
-            <Controls />
-            <MiniMap
-              nodeColor={(node) => {
-                switch (node.type) {
-                  case 'input':
-                    return 'hsl(var(--primary))';
-                  case 'output':
-                    return 'hsl(var(--secondary))';
-                  default:
-                    return 'hsl(var(--muted))';
-                }
-              }}
-              maskColor="rgba(255, 255, 255, 0.1)"
-            />
-          </ReactFlow>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="glass-panel relative"
+          style={{ height: 600 }}
+        >
+          <ReactFlowProvider>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={onNodeClick}
+              fitView
+              attributionPosition="bottom-right"
+            >
+              <Background />
+              <Controls />
+            </ReactFlow>
+          </ReactFlowProvider>
+        </motion.div>
+      )}
+
+      {selectedNode && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 p-4 border rounded-lg shadow-sm"
+        >
+          <h3 className="text-lg font-medium">{selectedNode.data.label}</h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            Click on nodes to explore relationships and connections between concepts
+          </p>
+        </motion.div>
       )}
     </div>
   );

@@ -1,30 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  ReactFlow, 
+
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Users, Loader, Info } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import ReactFlow, { 
+  Node, 
+  Edge, 
   Background, 
   Controls, 
-  MiniMap,
+  ReactFlowProvider,
   useNodesState,
-  useEdgesState,
-  addEdge,
-  ConnectionLineType,
-  MarkerType,
-} from '@xyflow/react';
-import { motion } from 'framer-motion';
-import { Loader, Users } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+  useEdgesState
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 import { processCharacterNetworkData } from '@/utils/dataProcessing';
-import '@xyflow/react/dist/style.css';
-
-const initialNodes = [];
-const initialEdges = [];
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 const Characters = () => {
   const { toast } = useToast();
   const [historyContext, setHistoryContext] = useState('');
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [loading, setLoading] = useState(false);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
   useEffect(() => {
     const storedContext = sessionStorage.getItem('historyContext');
@@ -34,25 +34,14 @@ const Characters = () => {
     }
   }, []);
 
-  const onConnect = useCallback((params: any) => {
-    setEdges((eds) => 
-      addEdge({
-        ...params,
-        type: 'straight',
-        animated: true,
-        markerEnd: { type: MarkerType.ArrowClosed },
-      }, eds)
-    );
-  }, [setEdges]);
-
   const generateCharacterNetwork = async (context: string) => {
     setLoading(true);
     try {
-      // Normally would call an AI service here
+      // Process the actual input text
       setTimeout(() => {
-        const { nodes: generatedNodes, edges: generatedEdges } = processCharacterNetworkData(context);
-        setNodes(generatedNodes);
-        setEdges(generatedEdges);
+        const data = processCharacterNetworkData(context);
+        setNodes(data.nodes);
+        setEdges(data.edges);
         setLoading(false);
       }, 1500);
     } catch (error) {
@@ -66,8 +55,20 @@ const Characters = () => {
     }
   };
 
+  const onNodeClick = (event: React.MouseEvent, node: Node) => {
+    setSelectedNode(node);
+    setIsSheetOpen(true);
+  };
+
+  const handleAnalyzeWithGemini = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Gemini integration requires Supabase connection. Please connect to Supabase to enable this feature.",
+    });
+  };
+
   return (
-    <div className="max-w-6xl mx-auto h-full">
+    <div className="max-w-6xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -79,7 +80,7 @@ const Characters = () => {
           Character Network
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Visualizing relationships and connections between historical figures.
+          Visualizing connections and relationships between key figures.
         </p>
       </motion.div>
 
@@ -94,40 +95,71 @@ const Characters = () => {
           <p className="mt-4 text-muted-foreground">Generating character network...</p>
         </div>
       ) : (
-        <div className="w-full h-[70vh] glass-panel overflow-hidden">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            connectionLineType={ConnectionLineType.Straight}
-            defaultZoom={1}
-            minZoom={0.1}
-            maxZoom={2}
-            fitView
-            attributionPosition="bottom-right"
-          >
-            <Background />
-            <Controls />
-            <MiniMap
-              nodeColor={(node) => {
-                switch (node.data.role) {
-                  case 'leader':
-                    return 'hsl(var(--primary))';
-                  case 'ally':
-                    return 'hsl(var(--accent))';
-                  case 'opponent':
-                    return 'hsl(var(--destructive))';
-                  default:
-                    return 'hsl(var(--muted))';
-                }
-              }}
-              maskColor="rgba(255, 255, 255, 0.1)"
-            />
-          </ReactFlow>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="glass-panel relative"
+          style={{ height: 600 }}
+        >
+          <ReactFlowProvider>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={onNodeClick}
+              fitView
+              attributionPosition="bottom-right"
+            >
+              <Background />
+              <Controls />
+            </ReactFlow>
+          </ReactFlowProvider>
+        </motion.div>
       )}
+
+      {/* Side panel for character details */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{selectedNode?.data.label}</SheetTitle>
+            <SheetDescription>
+              Role: {selectedNode?.data.role}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <h4 className="text-sm font-medium mb-2">Relationships</h4>
+            <div className="space-y-2">
+              {edges
+                .filter(edge => edge.source === selectedNode?.id || edge.target === selectedNode?.id)
+                .map(edge => {
+                  const otherNodeId = edge.source === selectedNode?.id ? edge.target : edge.source;
+                  const otherNode = nodes.find(node => node.id === otherNodeId);
+                  return (
+                    <div key={edge.id} className="flex items-center justify-between text-sm p-2 border rounded-md">
+                      <span>{otherNode?.data.label}</span>
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                        {edge.label}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+            
+            <div className="mt-6 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={handleAnalyzeWithGemini}
+                className="w-full"
+              >
+                <Info className="mr-2 h-4 w-4" />
+                Analyze with Gemini AI
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
