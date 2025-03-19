@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Loader, Info, X } from 'lucide-react';
+import { MapPin, Loader, Info, X, Bot } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { processGeographyData } from '@/utils/dataProcessing';
 import mapboxgl from 'mapbox-gl';
@@ -10,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from '@/components/ui/drawer';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from "@/integrations/supabase/client";
 
 interface GeoEvent {
   name: string;
@@ -34,6 +34,8 @@ const Geography = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -242,11 +244,85 @@ const Geography = () => {
     }
   };
   
-  const handleAnalyzeWithGemini = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Gemini integration requires Supabase connection. Please connect to Supabase to enable this feature.",
-    });
+  const handleAnalyzeWithGemini = async () => {
+    if (!historyContext) {
+      toast({
+        title: "No Text Available",
+        description: "Please provide some text on the home page first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setAnalyzeLoading(true);
+    setAiError(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-characters', {
+        body: { text: historyContext }
+      });
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      if (!data) {
+        throw new Error("Invalid response from AI service");
+      }
+      
+      toast({
+        title: "Analysis Complete",
+        description: "Character and relationship data has been analyzed.",
+      });
+      
+      // If we have location data, let's use it
+      if (data.characters) {
+        // Extract locations from character data
+        const locationCharacters = data.characters.filter(
+          char => char.entityType === 'location'
+        );
+        
+        if (locationCharacters.length > 0 && mapboxToken) {
+          // Create geographic events from location characters
+          const geoEvents = locationCharacters.map(location => {
+            // Generate random coordinates if none provided
+            // In a real app we would use geocoding to get precise coordinates
+            const longitude = Math.random() * 360 - 180;
+            const latitude = Math.random() * 170 - 85;
+            
+            return {
+              name: location.name,
+              date: "Historical Period",
+              description: location.description || `A significant location: ${location.name}`,
+              longitude,
+              latitude
+            };
+          });
+          
+          const geoData: GeoData = {
+            features: [],
+            events: geoEvents
+          };
+          
+          renderMapboxMarkers(geoData);
+        } else {
+          toast({
+            title: "No Locations Found",
+            description: "The AI analysis didn't identify any locations in the text.",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error analyzing with Gemini:", error);
+      setAiError(error.message);
+      toast({
+        title: "Analysis Failed",
+        description: error.message || "Failed to analyze text with AI. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzeLoading(false);
+    }
   };
   
   return (
@@ -289,12 +365,24 @@ const Geography = () => {
         
         <div className="mt-4 flex justify-center gap-2">
           <Button 
-            variant="outline" 
             onClick={handleAnalyzeWithGemini}
+            disabled={analyzeLoading || !historyContext}
           >
-            <Info className="mr-2 h-4 w-4" />
-            Analyze with Gemini AI
+            {analyzeLoading ? (
+              <>
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing with Gemini AI
+              </>
+            ) : (
+              <>
+                <Bot className="mr-2 h-4 w-4" />
+                Analyze with Gemini AI
+              </>
+            )}
           </Button>
+          {aiError && (
+            <p className="text-sm text-destructive mt-2">{aiError}</p>
+          )}
         </div>
       </motion.div>
 
@@ -372,10 +460,20 @@ const Geography = () => {
               <Button 
                 variant="outline" 
                 onClick={handleAnalyzeWithGemini}
+                disabled={analyzeLoading}
                 className="w-full"
               >
-                <Info className="mr-2 h-4 w-4" />
-                Analyze with Gemini AI
+                {analyzeLoading ? (
+                  <>
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Bot className="mr-2 h-4 w-4" />
+                    Analyze with Gemini AI
+                  </>
+                )}
               </Button>
             </div>
           </div>

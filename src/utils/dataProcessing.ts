@@ -130,6 +130,7 @@ export const processMindMapData = (context: string) => {
     const nodeId = `concept-${index}`;
     nodes.push({
       id: nodeId,
+      type: 'default',
       data: { label: concept },
       position: { x, y },
       style: { 

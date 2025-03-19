@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Loader, Info, User, Building, Map, BookOpen, UserCheck, MessageSquare, Robot } from 'lucide-react';
+import { Users, Loader, Info, User, Building, Map, BookOpen, UserCheck, MessageSquare, Bot } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ReactFlow, { 
   Node, 
@@ -19,7 +18,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Button } from '@/components/ui/button';
 import { supabase } from "@/integrations/supabase/client";
 
-// Custom node types for different entity types
 const entityTypeIcons = {
   person: User,
   organization: Building,
@@ -28,7 +26,6 @@ const entityTypeIcons = {
   unknown: Users
 };
 
-// Custom node component for different entity types
 const EntityNode = ({ data }) => {
   const IconComponent = entityTypeIcons[data.entityType || 'unknown'] || entityTypeIcons.unknown;
   
@@ -114,7 +111,6 @@ const Characters = () => {
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   
-  // Define custom node types
   const nodeTypes: NodeTypes = {
     entity: EntityNode
   };
@@ -130,7 +126,6 @@ const Characters = () => {
   const generateCharacterNetwork = async (context: string) => {
     setLoading(true);
     try {
-      // Process the actual input text
       setTimeout(() => {
         const data = processCharacterNetworkData(context);
         setNodes(data.nodes);
@@ -179,10 +174,8 @@ const Characters = () => {
         throw new Error("Invalid response from AI service");
       }
 
-      // Transform Gemini response to ReactFlow nodes and edges
       const transformedData = transformGeminiDataToReactFlow(data);
       
-      // Update the visualization
       setNodes(transformedData.nodes);
       setEdges(transformedData.edges);
       
@@ -203,25 +196,20 @@ const Characters = () => {
     }
   };
 
-  // Transform Gemini API response to ReactFlow format
   const transformGeminiDataToReactFlow = (data) => {
     const { characters, relationships } = data;
     
-    // Create a lookup for character names to IDs
     const characterIdMap = {};
     
-    // Transform characters to nodes
     const nodes = characters.map((character, index) => {
       const id = `char-${index}`;
       characterIdMap[character.name] = id;
       
-      // Calculate position in a circle layout
-      const radius = 250; // Radius of the circle
+      const radius = 250;
       const angle = (index / characters.length) * 2 * Math.PI;
       const x = 400 + radius * Math.cos(angle);
       const y = 300 + radius * Math.sin(angle);
       
-      // Set node style based on entity type and importance
       const getNodeStyle = (entityType, importance) => {
         const baseStyle = {
           width: 120,
@@ -266,8 +254,7 @@ const Characters = () => {
             color: 'hsl(var(--foreground))'
           }
         };
-
-        // Adjust size based on importance
+        
         const importanceScale = importance ? Math.min(importance / 5, 2) : 1;
         const style = styles[entityType || 'unknown'] || styles.unknown;
         
@@ -294,7 +281,6 @@ const Characters = () => {
       };
     });
 
-    // Transform relationships to edges
     const edges = relationships ? relationships.map((relationship, index) => {
       const sourceId = characterIdMap[relationship.source];
       const targetId = characterIdMap[relationship.target];
@@ -304,7 +290,6 @@ const Characters = () => {
         return null;
       }
       
-      // Determine edge style based on relationship type
       const getEdgeStyle = (type, strength) => {
         const strokeWidth = strength ? Math.max(1, Math.min(strength / 2, 5)) : 2;
         
@@ -333,7 +318,6 @@ const Characters = () => {
           description: relationship.description,
           strength: relationship.strength
         },
-        // Add these for the sidebar's relationship rendering
         sourceName: relationship.source,
         targetName: relationship.target
       };
@@ -342,7 +326,6 @@ const Characters = () => {
     return { nodes, edges };
   };
 
-  // Get relationships for the selected node
   const getSelectedNodeRelationships = () => {
     if (!selectedNode) return [];
     
@@ -380,7 +363,7 @@ const Characters = () => {
               </>
             ) : (
               <>
-                <Robot className="mr-2 h-4 w-4" />
+                <Bot className="mr-2 h-4 w-4" />
                 Analyze with Gemini AI
               </>
             )}
@@ -427,7 +410,6 @@ const Characters = () => {
         </motion.div>
       )}
 
-      {/* Side panel for character details */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="overflow-y-auto">
           <SheetHeader>
