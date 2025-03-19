@@ -1,4 +1,3 @@
-
 // Helper function to extract years or dates from text
 const extractDatesFromText = (text: string): Date[] => {
   // Look for years (4 digits) or full dates in the text
@@ -241,7 +240,7 @@ export const processGeographyData = (context: string) => {
   };
 };
 
-// Extract character names and their relationships from text
+// Process the character network data
 export const processCharacterNetworkData = (context: string) => {
   const keyFigures = extractKeyFigures(context);
   
@@ -258,9 +257,11 @@ export const processCharacterNetworkData = (context: string) => {
   const nodes = [
     {
       id: 'char1',
+      type: 'entity',
       data: { 
         label: figures[0] || "Central Figure",
         role: 'leader',
+        entityType: 'person'
       },
       position: { x: 250, y: 250 },
       style: { 
@@ -274,7 +275,7 @@ export const processCharacterNetworkData = (context: string) => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        textAlign: 'center',
+        textAlign: 'center' as const,
       },
     }
   ];
@@ -283,12 +284,16 @@ export const processCharacterNetworkData = (context: string) => {
   
   // Different relationship types
   const relationships = ['Ally', 'Mentor', 'Enemy', 'Rival', 'Friend', 'Collaborator'];
+  const entityTypes = ['person', 'organization', 'concept', 'location'];
   
   // Position other figures around the central one
   figures.slice(1).forEach((figure, index) => {
     // Alternate between allies and opponents
     const isAlly = index % 2 === 0;
     const role = isAlly ? 'ally' : 'opponent';
+    
+    // Assign a random entity type
+    const entityType = entityTypes[index % entityTypes.length];
     
     // Calculate position (alternating between quadrants)
     const quadrant = index % 4;
@@ -303,9 +308,11 @@ export const processCharacterNetworkData = (context: string) => {
     const nodeId = `char${index + 2}`;
     nodes.push({
       id: nodeId,
+      type: 'entity',
       data: { 
         label: figure,
         role: role,
+        entityType: entityType
       },
       position: { x, y },
       style: { 
@@ -319,7 +326,7 @@ export const processCharacterNetworkData = (context: string) => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        textAlign: 'center',
+        textAlign: 'center' as const,
       },
     });
     
