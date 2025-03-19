@@ -1,9 +1,23 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Loader } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { processGeographyData } from '@/utils/dataProcessing';
 import * as d3 from 'd3';
+
+interface GeoEvent {
+  name: string;
+  date: string;
+  description: string;
+  longitude: number;
+  latitude: number;
+}
+
+interface GeoData {
+  features: any[];
+  events: GeoEvent[];
+}
 
 const Geography = () => {
   const { toast } = useToast();
@@ -21,7 +35,7 @@ const Geography = () => {
   const generateGeographicMap = async (context: string) => {
     setLoading(true);
     try {
-      // Normally would call an AI service here
+      // Process the actual input text
       setTimeout(() => {
         const data = processGeographyData(context);
         renderMap(data);
@@ -38,7 +52,7 @@ const Geography = () => {
     }
   };
 
-  const renderMap = (data: any) => {
+  const renderMap = (data: GeoData) => {
     // Clear previous map
     d3.select('#map-container').selectAll('*').remove();
     
@@ -81,14 +95,14 @@ const Geography = () => {
           .data(data.events || [])
           .enter()
           .append('circle')
-          .attr('cx', (d: any) => projection([d.longitude, d.latitude])[0])
-          .attr('cy', (d: any) => projection([d.longitude, d.latitude])[1])
+          .attr('cx', (d: GeoEvent) => projection([d.longitude, d.latitude])[0])
+          .attr('cy', (d: GeoEvent) => projection([d.longitude, d.latitude])[1])
           .attr('r', 5)
           .attr('fill', 'hsl(var(--primary))')
           .attr('stroke', '#fff')
           .attr('stroke-width', 1)
           .attr('opacity', 0.8)
-          .on('mouseover', function(event, d) {
+          .on('mouseover', function(event, d: GeoEvent) {
             d3.select(this)
               .transition()
               .duration(200)

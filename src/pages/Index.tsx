@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
 import { 
   Calendar, Clock, MapPin, Users, GitBranch, 
@@ -107,13 +107,11 @@ const Index = () => {
         
         <form onSubmit={handleSubmit} className="max-w-2xl mx-auto mb-12">
           <div className="flex flex-col gap-4">
-            <Input
+            <Textarea
               value={historyInput}
               onChange={(e) => setHistoryInput(e.target.value)}
               placeholder="Enter a historical context, era, or narrative to visualize..."
               className="w-full h-32 p-4 text-lg border-2 focus-visible:ring-2 transition-all duration-300"
-              type="text"
-              as="textarea"
             />
             <Button type="submit" size="lg" className="interactive-element">
               <BookOpen className="mr-2 h-5 w-5" />
